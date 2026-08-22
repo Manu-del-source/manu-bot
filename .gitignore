@@ -1,0 +1,14 @@
+node_modules/
+sessions/
+.env
+*.log
+npm-debug.log*
+
+# WhatsApp authentication/session data
+sessions-paired/
+auth_info/
+creds.json
+**/creds.json
+
+# Separate reference repository
+blaze-reference/
