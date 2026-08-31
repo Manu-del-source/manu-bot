@@ -1,6 +1,6 @@
 const { registerCommand } = require('../lib/commands/registry');
+const { YouTube } = require('youtube-sr');
 const ytdl = require('ytdl-core');
-const fetch = require('node-fetch');
 
 registerCommand('play', async ({ sock, message, args }) => {
   const jid = message.key.remoteJid;
@@ -16,35 +16,23 @@ registerCommand('play', async ({ sock, message, args }) => {
     const query = args.join(' ');
     await sock.sendMessage(jid, { text: `🔍 Searching: *${query}*...` });
 
-    // Search YouTube using ytdl-core search
-    let videoUrl;
-    let videoTitle;
-    let videoDuration;
-    let videoViews;
+    // Search YouTube
+    const results = await YouTube.search(query, { limit: 1 });
 
-    try {
-      // Use ytdl-core to search
-      const searchResult = await ytdl.getInfo(`ytsearch:${query}`);
-      videoUrl = searchResult.videoDetails.video_url;
-      videoTitle = searchResult.videoDetails.title;
-      videoDuration = searchResult.videoDetails.lengthSeconds;
-      videoViews = searchResult.videoDetails.viewCount;
-    } catch (searchErr) {
-      // Fallback: try direct URL if query looks like a URL
-      if (ytdl.validateURL(query)) {
-        const info = await ytdl.getInfo(query);
-        videoUrl = info.videoDetails.video_url;
-        videoTitle = info.videoDetails.title;
-        videoDuration = info.videoDetails.lengthSeconds;
-        videoViews = info.videoDetails.viewCount;
-      } else {
-        throw new Error('Could not find video');
-      }
+    if (!results || !results.length) {
+      await sock.sendMessage(jid, { text: '❌ No results found.' });
+      return;
     }
 
-    const duration = formatDuration(parseInt(videoDuration));
+    const video = results[0];
+    const videoUrl = video.url;
+    const videoTitle = video.title;
+    const videoDuration = video.duration?.seconds || 0;
+    const videoViews = video.views || 0;
 
-    if (parseInt(videoDuration) > 600) {
+    const duration = formatDuration(videoDuration);
+
+    if (videoDuration > 600) {
       await sock.sendMessage(jid, { text: '❌ Video too long! Maximum 10 minutes.' });
       return;
     }
@@ -87,6 +75,6 @@ registerCommand('play', async ({ sock, message, args }) => {
 
 function formatDuration(seconds) {
   const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
+  const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
